@@ -1,0 +1,75 @@
+package playground
+
+templ website() {
+<html lang="en" xmlns:hx-on="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"/>
+  <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+        rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200;0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;0,8..60,800;0,8..60,900;1,8..60,200;1,8..60,300;1,8..60,400;1,8..60,500;1,8..60,600;1,8..60,700;1,8..60,800;1,8..60,900&display=swap"
+        rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"/>
+  <link rel="stylesheet" href="/playground/stylesheet.css"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="/public/icons/apple-touch-icon.png"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/public/icons/favicon-32x32.png"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="/public/icons/favicon-16x16.png"/>
+  <link rel="manifest" href="/public/icons/site.webmanifest"/>
+  <title>fontseca.dev — playground</title>
+</head>
+<body hx-on:keyup="SubmitRequest(event)">
+<div class="site-wrapper">
+  <main class="main">
+    <h1>fontseca.dev's playground</h1>
+    <form id="http-request-form"
+          hx-post="playground.request"
+          hx-swap="innerHTML"
+          hx-target="#http-response-body"
+          hx-trigger="submit">
+      <label>
+        <select id="http-request-method-picker" name="request_method">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>PATCH</option>
+          <option>DELETE</option>
+        </select>
+        <input id="http-request-target"
+               type="url"
+               name="request_target"
+               required
+               placeholder="Type HTTP target URL..." />
+      </label>
+      <button type="submit">Send</button>
+    </form>
+
+    <div>
+      <table>
+        <thead>
+          <tr>
+            <td>Key</td>
+            <td>Value</td>
+          </tr>
+        </thead>
+        <tbody id="http-request-query-parameters"></tbody>
+      </table>
+    </div>
+
+    <div style="width: 100%;">
+      <pre>
+        <code id="http-response-body"></code>
+      </pre>
+    </div>
+  </main>
+</div>
+<script src="/playground/engine.js"></script>
+<script src="https://unpkg.com/htmx.org@2.0.1" integrity="sha384-QWGpdj554B4ETpJJC9z+ZHJcA/i59TyjxEPXiiUgN2WmTyV5OEZWCD6gQhgkdpB/" crossorigin="anonymous"></script>
+</body>
+</html>
+}
