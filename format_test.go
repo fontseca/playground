@@ -5,6 +5,218 @@ import (
   "testing"
 )
 
+func TestFormatText(t *testing.T) {
+  tests := [...][2]string{
+    {"", ""},
+    {`
+
+
+
+    
+
+
+      
+
+
+
+
+package playground
+
+import (
+  "bytes"
+  "html"
+  "io"
+  "log/slog"
+  "regexp"
+  "strings"
+)
+
+var (
+  xmlReTag              = regexp.MustCompile('<([/!]?)([^>]+?)(/?)>')        // regexp xmlReTag matches an XML tag
+  xmlReComment          = regexp.MustCompile('(?s)(<!--)(.*?)(-->)')         // regexp xmlReComment matches an XML comment
+  xmlReXMLInsideComment = regexp.MustCompile('<!--[^>]*?<[^>]+?[^-]*?-->')   // regexp xmlReXMLInsideComment matches XML tags inside comments
+  xmlReBlanksAround     = regexp.MustCompile('\s*(<|/?>)\s*')                // regexp xmlReBlanksAround matches blanks around XML tags
+  xmlReBlanksInsideTags = regexp.MustCompile('>([^<]*[\n\r\t]|{3,})[^<]*<')  // regexp xmlReBlanksInsideTags matches the content of an XML tags that contains repeated spaces or \r\n\t
+  xmlReBlanks           = regexp.MustCompile('\s{2,}')                       // regexp xmlReBlanks matches the content of an XML tag that contains more than two spaces together
+)
+
+type xmlFormatterImpl struct{}
+
+// formatXML implements basic formatting for XML input by applying indentation, normalizing whitespace, handling
+// comments and XML tags inside comments.
+func (xmlFormatterImpl) format(input []byte, output io.Writer, indent string) {
+  if nil == input || len(input) < 2 {
+    return
+  }
+
+  var needsUnescape bool
+
+  // Comments might contain further XML code. In that's the case, we want to escape
+  // that code to avoid formatting.
+  out := xmlReXMLInsideComment.ReplaceAllFunc(input, func(comment []byte) []byte {
+    needsUnescape = true
+    submatches := xmlReComment.FindSubmatch(comment)
+    b := bytes.Buffer{}
+    b.Grow(len(comment))
+    b.Write(submatches[1])                                  // <!--
+    b.WriteString(html.EscapeString(string(submatches[2]))) // ... (which includes XML code)
+    b.Write(submatches[3])                                  // -->
+    return b.Bytes()
+  })
+
+  out = xmlReBlanksAround.ReplaceAll(out, []byte("$1"))
+  out = xmlReBlanksInsideTags.ReplaceAllFunc(out, func(m []byte) []byte {
+    return xmlReBlanks.ReplaceAll(m, []byte(" "))
+  })
+
+  out = xmlReTag.ReplaceAllFunc(out, tagReplacer(indent))
+
+  if needsUnescape {
+    // restore the original comment escaped content
+    out = xmlReComment.ReplaceAllFunc(out, func(comment []byte) []byte {
+      submatches := xmlReComment.FindSubmatch(comment)
+      b := bytes.Buffer{}
+      b.Grow(len(comment))
+      b.Write(submatches[1])                                    // <!--
+      b.WriteString(html.UnescapeString(string(submatches[2]))) // ... (which include XML code)
+      b.Write(submatches[3])                                    // -->
+      return b.Bytes()
+    })
+  }
+
+  _, err := output.Write(out[1:])
+  if nil != err {
+    slog.Error(err.Error())
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+`, `package playground
+
+import (
+  "bytes"
+  "html"
+  "io"
+  "log/slog"
+  "regexp"
+  "strings"
+)
+
+var (
+  xmlReTag              = regexp.MustCompile('<([/!]?)([^>]+?)(/?)>')        // regexp xmlReTag matches an XML tag
+  xmlReComment          = regexp.MustCompile('(?s)(<!--)(.*?)(-->)')         // regexp xmlReComment matches an XML comment
+  xmlReXMLInsideComment = regexp.MustCompile('<!--[^>]*?<[^>]+?[^-]*?-->')   // regexp xmlReXMLInsideComment matches XML tags inside comments
+  xmlReBlanksAround     = regexp.MustCompile('\s*(<|/?>)\s*')                // regexp xmlReBlanksAround matches blanks around XML tags
+  xmlReBlanksInsideTags = regexp.MustCompile('>([^<]*[\n\r\t]|{3,})[^<]*<')  // regexp xmlReBlanksInsideTags matches the content of an XML tags that contains repeated spaces or \r\n\t
+  xmlReBlanks           = regexp.MustCompile('\s{2,}')                       // regexp xmlReBlanks matches the content of an XML tag that contains more than two spaces together
+)
+
+type xmlFormatterImpl struct{}
+
+// formatXML implements basic formatting for XML input by applying indentation, normalizing whitespace, handling
+// comments and XML tags inside comments.
+func (xmlFormatterImpl) format(input []byte, output io.Writer, indent string) {
+  if nil == input || len(input) < 2 {
+    return
+  }
+
+  var needsUnescape bool
+
+  // Comments might contain further XML code. In that's the case, we want to escape
+  // that code to avoid formatting.
+  out := xmlReXMLInsideComment.ReplaceAllFunc(input, func(comment []byte) []byte {
+    needsUnescape = true
+    submatches := xmlReComment.FindSubmatch(comment)
+    b := bytes.Buffer{}
+    b.Grow(len(comment))
+    b.Write(submatches[1])                                  // <!--
+    b.WriteString(html.EscapeString(string(submatches[2]))) // ... (which includes XML code)
+    b.Write(submatches[3])                                  // -->
+    return b.Bytes()
+  })
+
+  out = xmlReBlanksAround.ReplaceAll(out, []byte("$1"))
+  out = xmlReBlanksInsideTags.ReplaceAllFunc(out, func(m []byte) []byte {
+    return xmlReBlanks.ReplaceAll(m, []byte(" "))
+  })
+
+  out = xmlReTag.ReplaceAllFunc(out, tagReplacer(indent))
+
+  if needsUnescape {
+    // restore the original comment escaped content
+    out = xmlReComment.ReplaceAllFunc(out, func(comment []byte) []byte {
+      submatches := xmlReComment.FindSubmatch(comment)
+      b := bytes.Buffer{}
+      b.Grow(len(comment))
+      b.Write(submatches[1])                                    // <!--
+      b.WriteString(html.UnescapeString(string(submatches[2]))) // ... (which include XML code)
+      b.Write(submatches[3])                                    // -->
+      return b.Bytes()
+    })
+  }
+
+  _, err := output.Write(out[1:])
+  if nil != err {
+    slog.Error(err.Error())
+  }
+}`},
+    {
+      `formatter := textFormatterImpl{}
+  for _, test := range tests {
+    buf := bytes.Buffer{}
+    expected := test[1]
+    formatter.format([]byte(test[0]), &buf, "  ")
+    got := string(buf.Bytes())
+    if got != expected {
+      t.Errorf("\n"+
+        "\nexpected:\n\n%s\n"+
+        "\ngot:\n\n%s",
+        expected, got)
+    }
+  }`,
+      `formatter := textFormatterImpl{}
+  for _, test := range tests {
+    buf := bytes.Buffer{}
+    expected := test[1]
+    formatter.format([]byte(test[0]), &buf, "  ")
+    got := string(buf.Bytes())
+    if got != expected {
+      t.Errorf("\n"+
+        "\nexpected:\n\n%s\n"+
+        "\ngot:\n\n%s",
+        expected, got)
+    }
+  }`},
+  }
+
+  formatter := textFormatterImpl{}
+  for _, test := range tests {
+    buf := bytes.Buffer{}
+    expected := test[1]
+    formatter.format([]byte(test[0]), &buf, "  ")
+    got := string(buf.Bytes())
+    if got != expected {
+      t.Errorf("\n"+
+        "\nexpected:\n\n%s\n"+
+        "\ngot:\n\n%s",
+        expected, got)
+    }
+  }
+}
+
 func TestFormatXML(t *testing.T) {
   tests := [...][2]string{
     {"", ""},

@@ -9,6 +9,20 @@ import (
   "strings"
 )
 
+type textFormatterImpl struct{}
+
+// format trims left and right spaces from input and returns the actual content as is.
+func (textFormatterImpl) format(input []byte, output io.Writer, _ string) {
+  if len(input) == 0 {
+    return
+  }
+
+  _, err := output.Write(bytes.TrimSpace(input))
+  if nil != err {
+    slog.Error(err.Error())
+  }
+}
+
 var (
   xmlReTag              = regexp.MustCompile(`<([/!]?)([^>]+?)(/?)>`)        // regexp xmlReTag matches an XML tag
   xmlReComment          = regexp.MustCompile(`(?s)(<!--)(.*?)(-->)`)         // regexp xmlReComment matches an XML comment
@@ -20,7 +34,7 @@ var (
 
 type xmlFormatterImpl struct{}
 
-// formatXML implements basic formatting for XML input by applying indentation, normalizing whitespace, handling
+// format implements basic formatting for XML input by applying indentation, normalizing whitespace, handling
 // comments and XML tags inside comments.
 func (xmlFormatterImpl) format(input []byte, output io.Writer, indent string) {
   if nil == input || len(input) < 2 {
