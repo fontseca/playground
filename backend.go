@@ -51,3 +51,11 @@ func backend(in *request) *response {
 
   return out
 }
+
+// splitMediaType extracts the type and subtype from a MIME type.
+func splitMediaType(v string) (typ string, subtype string) {
+  if parts := strings.Split(v, "/"); len(parts) == 2 {
+    return parts[0], strings.Split(parts[1], ";")[0]
+  }
+  return
+}
