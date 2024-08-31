@@ -5,6 +5,7 @@ import (
   "encoding/json"
   "io"
   "log/slog"
+  "mime"
   "net/http"
   "time"
 )
@@ -13,6 +14,29 @@ import (
 type response struct {
   // body stores the formatted JSON response from the backend.
   body *bytes.Buffer
+}
+
+type bodyFormatter interface {
+  format(input []byte, output io.Writer, indent string)
+}
+
+var (
+  textFormatter = &textFormatterImpl{}
+  xmlFormatter  = &xmlFormatterImpl{}
+  jsonFormatter = &jsonFormatterImpl{}
+  htmlFormatter = &htmlFormatterImpl{}
+)
+
+var supportedMediaTypes = map[string]bodyFormatter{
+  "application/xml":          xmlFormatter,
+  "application/problem+xml":  xmlFormatter,
+  "application/json":         jsonFormatter,
+  "application/problem+json": jsonFormatter,
+  "application/sql":          textFormatter,
+  "application/yaml":         textFormatter, // TODO: implement a YAML formatter
+
+  "text/xml":  xmlFormatter,
+  "text/html": htmlFormatter,
 }
 
 // backend sends an HTTP request to the target specified in the input request
@@ -24,10 +48,19 @@ func backend(in *request) *response {
   }
 
   req, err := http.NewRequest(in.method, in.target.String(), nil)
-
   if nil != err {
     slog.Error(err.Error())
     return nil
+  }
+
+  for k, v := range in.header {
+    for _, vv := range v {
+      req.Header.Add(k, vv)
+    }
+  }
+
+  out := &response{
+    body: &bytes.Buffer{},
   }
 
   res, err := client.Do(req)
@@ -36,11 +69,25 @@ func backend(in *request) *response {
     return nil
   }
 
-  result, err := io.ReadAll(res.Body)
-  defer res.Body.Close()
+  var (
+    contentType     = res.Header.Get("Content-Type")
+    mediatype, _, _ = mime.ParseMediaType(contentType)
+    formatter       bodyFormatter
+  )
 
-  out := &response{
-    body: &bytes.Buffer{},
+  for mtype, f := range supportedMediaTypes {
+    if mediatype == mtype {
+      formatter = f
+    }
+  }
+
+  if nil == formatter {
+    if typ, _ := splitMediaType(mediatype); "text" != typ {
+      out.body.WriteString("Unsupported media type:" + mediatype)
+      return out
+    }
+
+    formatter = textFormatter
   }
 
   err = json.Indent(out.body, result, "", "  ")
@@ -48,6 +95,8 @@ func backend(in *request) *response {
     slog.Error(err.Error())
     return nil
   }
+
+  formatter.format(result, out.body, "  ")
 
   return out
 }
