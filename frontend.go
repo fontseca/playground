@@ -15,7 +15,7 @@ func Scanner(w http.ResponseWriter, r *http.Request) {
   out := backend(req)
 
   w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-  str := template.HTMLEscapeString(out.body.String())
+  str := template.HTMLEscapeString(out.String())
   fmt.Fprint(w, str)
 }
 

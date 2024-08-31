@@ -15,10 +15,15 @@ import (
 // maxBodyBytes is the accepted body size for a playground request.
 const maxBodyBytes = 5 << 20 // 5 MB
 
-// response represents the response returned from the backend.
-type response struct {
-  // body stores the formatted JSON response from the backend.
-  body *bytes.Buffer
+// playgroundResponse represents the response returned from the backend.
+type playgroundResponse struct {
+  bytes.Buffer
+}
+
+func newPlaygroundResponse() *playgroundResponse {
+  r := new(playgroundResponse)
+  r.Buffer = bytes.Buffer{}
+  return r
 }
 
 type bodyFormatter interface {
@@ -51,9 +56,9 @@ var supportedEncodings = map[string]func(io.Reader) io.ReadCloser{
 }
 
 // backend sends an HTTP request to the target specified in the input request
-// and returns a response with a formatted JSON body. If an error occurs during
+// and returns a playgroundResponse with a formatted JSON body. If an error occurs during
 // the request, it logs the error and returns nil.
-func backend(in *request) *response {
+func backend(in *request) *playgroundResponse {
   client := http.Client{
     Timeout: 30 * time.Second,
   }
@@ -70,14 +75,12 @@ func backend(in *request) *response {
     }
   }
 
-  out := &response{
-    body: &bytes.Buffer{},
-  }
+  out := newPlaygroundResponse()
 
   res, err := client.Do(req)
   if nil != err {
     if strings.Contains(err.Error(), "unsupported protocol scheme") {
-      out.body.WriteString("Unsupported protocol scheme.")
+      out.WriteString("Unsupported protocol scheme.")
       return out
     }
 
@@ -99,7 +102,7 @@ func backend(in *request) *response {
 
   if nil == formatter {
     if typ, _ := splitMediaType(mediatype); "text" != typ {
-      out.body.WriteString("Unsupported media type:" + mediatype)
+      out.WriteString("Unsupported media type:" + mediatype)
       return out
     }
 
@@ -118,7 +121,7 @@ func backend(in *request) *response {
 
   if nil == bodyReader {
     if "" != contentEncoding {
-      out.body.WriteString("Unsupported Content-Encoding encoding: " + contentEncoding)
+      out.WriteString("Unsupported Content-Encoding encoding: " + contentEncoding)
       return out
     }
 
@@ -130,7 +133,7 @@ func backend(in *request) *response {
   result, err := io.ReadAll(bodyReader)
   if nil != err {
     if strings.Contains(err.Error(), "request body too large") {
-      out.body.WriteString("Request body too large.")
+      out.WriteString("Request body too large.")
     } else {
       slog.Error(err.Error())
     }
@@ -138,7 +141,7 @@ func backend(in *request) *response {
     return out
   }
 
-  formatter.format(result, out.body, "  ")
+  formatter.format(result, out, "  ")
 
   return out
 }
