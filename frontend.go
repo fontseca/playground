@@ -45,6 +45,18 @@ func parse(r *http.Request) *request {
 
   target := r.PostFormValue("request_target")
   method := r.PostFormValue("request_method")
+  headerKeys := r.PostForm["header-key"]
+  headerValues := r.PostForm["header-value"]
+
+  req.header = http.Header{}
+  for n := range len(headerKeys) {
+    key, value := headerKeys[n], headerValues[n] // must be trimmed already
+    if "" == key && "" == value {
+      continue
+    }
+
+    req.header.Add(http.CanonicalHeaderKey(key), value)
+  }
 
   req.method = method
 
