@@ -217,6 +217,77 @@ func (xmlFormatterImpl) format(input []byte, output io.Writer, indent string) {
   }
 }
 
+func TestFormatJSON(t *testing.T) {
+  tests := [...][2]string{
+    {`
+                    
+        
+
+{
+"id": 5
+,"name": "Chelsey Dietrich",
+"username": "Kamren","email": "Lucio_Hettinger@annie.ca",
+"address": { "street": "Skiles Walks", "suite": "Suite 351",
+"city": "Roscoeview","zipcode": "33263",
+"geo": {"lat":"-31.8129","lng": "62.5342"
+}       
+},"phone": "(254)954-1289","website": "demarco.info","company": {"name": "Keebler LLC","catchPhrase": "User-centric fault-tolerant solution",
+"bs": 
+
+
+
+
+
+
+
+"revolutionize end-to-end systems"}}
+                          
+
+
+
+      
+                 
+
+`, `{
+  "id": 5,
+  "name": "Chelsey Dietrich",
+  "username": "Kamren",
+  "email": "Lucio_Hettinger@annie.ca",
+  "address": {
+    "street": "Skiles Walks",
+    "suite": "Suite 351",
+    "city": "Roscoeview",
+    "zipcode": "33263",
+    "geo": {
+      "lat": "-31.8129",
+      "lng": "62.5342"
+    }
+  },
+  "phone": "(254)954-1289",
+  "website": "demarco.info",
+  "company": {
+    "name": "Keebler LLC",
+    "catchPhrase": "User-centric fault-tolerant solution",
+    "bs": "revolutionize end-to-end systems"
+  }
+}`},
+  }
+
+  formatter := jsonFormatterImpl{}
+  for _, test := range tests {
+    buf := bytes.Buffer{}
+    expected := test[1]
+    formatter.format([]byte(test[0]), &buf, "  ")
+    got := string(buf.Bytes())
+    if got != expected {
+      t.Errorf("\n"+
+        "\nexpected:\n\n---\n%s\n---\n"+
+        "\ngot:\n\n---\n%s---",
+        expected, got)
+    }
+  }
+}
+
 func TestFormatXML(t *testing.T) {
   tests := [...][2]string{
     {"", ""},

@@ -2,6 +2,7 @@ package playground
 
 import (
   "bytes"
+  "encoding/json"
   "html"
   "io"
   "log/slog"
@@ -18,6 +19,27 @@ func (textFormatterImpl) format(input []byte, output io.Writer, _ string) {
   }
 
   _, err := output.Write(bytes.TrimSpace(input))
+  if nil != err {
+    slog.Error(err.Error())
+  }
+}
+
+type jsonFormatterImpl struct{}
+
+// format implements a JSON formatter.
+func (jsonFormatterImpl) format(input []byte, output io.Writer, indent string) {
+  if len(input) == 0 {
+    return
+  }
+
+  buffer := bytes.Buffer{}
+  err := json.Indent(&buffer, input, "", indent)
+  if nil != err {
+    slog.Error(err.Error())
+    return
+  }
+
+  _, err = output.Write(bytes.TrimSpace(buffer.Bytes()))
   if nil != err {
     slog.Error(err.Error())
   }
