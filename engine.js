@@ -2,6 +2,7 @@ const requestTarget = document.getElementById("http-request-target");
 
 document.addEventListener("DOMContentLoaded", function () {
   AppendQueryParameterRow("", "");
+  AppendHeaderRow("", "");
 
   if (requestTarget) {
     requestTarget.addEventListener("keyup", ParseQueryParametersFromRequestBar);
@@ -177,5 +178,67 @@ function InterceptQueryParameterEntry(event) {
   const needsNewParamRow = parametersCount < 1 + indexOfCurrentParamRow;
   if ("" !== parameterKey && needsNewParamRow) {
     AppendQueryParameterRow("", "");
+  }
+}
+
+function GetHeadersTable() {
+  return document.getElementById("http-request-headers");
+}
+
+function AppendHeaderRow(key, value) {
+  const tbody = GetHeadersTable();
+  const entry = tbody.insertRow();
+  entry.innerHTML = `
+    <td>
+      <input class="http-request-header-key"
+             type="text"
+             placeholder="Key"
+             form="http-request-form"
+             name="header-key"
+             value="${key}" />
+    </td>
+    <td>
+      <input class="http-request-header-value"
+             type="text"
+             form="http-request-form"
+             name="header-value"
+             placeholder="Value"
+             value="${value}" />
+    </td>
+  `;
+
+  entry
+    .querySelector(".http-request-header-key")
+    .addEventListener("keyup", InterceptHeaderEntry);
+
+  entry.querySelector(".http-request-header-value");
+}
+
+function InterceptHeaderEntry(event) {
+  const headerKeyInputElement = event.target;
+  const headersTable = GetHeadersTable();
+  const headersCount = headersTable.rows.length;
+  const headerKey = headerKeyInputElement.value.trim();
+  const indexOfCurrentHeaderRow = headerKeyInputElement
+    .parentElement
+    .parentElement
+    .rowIndex;
+
+  if (indexOfCurrentHeaderRow === headersCount - 1) { // we're at the penultimate row
+    const headerValue = headerKeyInputElement
+      .parentElement
+      .parentElement
+      .querySelector(".http-request-header-value")
+      .value
+      .trim();
+
+    if ("" === headerKey && "" === headerValue) {
+      headersTable.removeChild(headersTable.lastChild);
+    }
+  }
+
+  const needsNewHeaderRow = headersCount < 1 + indexOfCurrentHeaderRow;
+  if ("" !== headerKey && needsNewHeaderRow) {
+    AppendHeaderRow("", "");
   }
 }

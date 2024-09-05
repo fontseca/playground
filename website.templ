@@ -50,6 +50,7 @@ templ website() {
     </form>
 
     <div>
+      <h3>Query parameters</h3>
       <table>
         <thead>
           <tr>
@@ -58,6 +59,19 @@ templ website() {
           </tr>
         </thead>
         <tbody id="http-request-query-parameters"></tbody>
+      </table>
+    </div>
+
+    <div>
+      <h3>Request Headers</h3>
+      <table>
+        <thead>
+          <tr>
+            <td>Key</td>
+            <td>Value</td>
+          </tr>
+        </thead>
+        <tbody id="http-request-headers"></tbody>
       </table>
     </div>
 
