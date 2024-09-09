@@ -1,7 +1,6 @@
 package playground
 
 import (
-  "fmt"
   "html/template"
   "log/slog"
   "net/http"
@@ -12,11 +11,11 @@ import (
 // and writes the formatted response to the HTTP response writer.
 func Scanner(w http.ResponseWriter, r *http.Request) {
   req := parse(r)
-  out := backend(req)
+  response := backend(req)
 
   w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-  str := template.HTMLEscapeString(out.String())
-  fmt.Fprint(w, str)
+  w.WriteHeader(http.StatusOK)
+  template.HTMLEscape(w, response.Bytes())
 }
 
 // Renderer renders the website template and writes it to the HTTP response writer.
