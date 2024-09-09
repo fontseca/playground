@@ -29,8 +29,7 @@ templ website() {
     <h1>fontseca.dev's playground</h1>
     <form id="http-request-form"
           hx-post="playground.request"
-          hx-swap="innerHTML"
-          hx-target="#http-response-body"
+          hx-swap="none"
           hx-trigger="submit">
       <label>
         <select id="http-request-method-picker" name="request_method">
@@ -76,9 +75,23 @@ templ website() {
     </div>
 
     <div style="width: 100%;">
+      <h3 id="http-response-status"></h3>
       <pre>
         <code id="http-response-body"></code>
       </pre>
+    </div>
+
+    <div>
+      <h3>Response Headers</h3>
+      <table>
+        <thead>
+          <tr>
+            <td>Key</td>
+            <td>Value</td>
+          </tr>
+        </thead>
+        <tbody id="http-response-headers"></tbody>
+      </table>
     </div>
   </main>
 </div>
