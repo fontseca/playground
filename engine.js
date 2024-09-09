@@ -1,5 +1,7 @@
 const requestTarget = document.getElementById("http-request-target");
 
+document.body.addEventListener('htmx:afterOnLoad', HandleAfterOnLoad);
+
 document.addEventListener("DOMContentLoaded", function () {
   AppendQueryParameterRow("", "");
   AppendHeaderRow("", "");
@@ -47,6 +49,38 @@ function SubmitRequest(event) {
     event.preventDefault();
     htmx.trigger(document.forms["http-request-form"], "submit");
   }
+}
+
+function HandleAfterOnLoad(event) {
+  const statusContainer = document.getElementById("http-response-status");
+  const bodyContainer = document.getElementById("http-response-body");
+  const responseHeadersTable = document.getElementById("http-response-headers");
+  const httpResponseMessage = event.detail.xhr.responseText;
+  const response = ParseHTTPResponse(httpResponseMessage);
+
+  responseHeadersTable.innerHTML = "";
+  bodyContainer.innerHTML = response.body;
+  statusContainer.textContent = `${response.proto} ${response.statusCode} ${ response.statusText }`;
+
+  Object.keys(response.headers).forEach(key => {
+    const value = response.headers[key];
+    const entry = responseHeadersTable.insertRow();
+    entry.innerHTML = `
+    <td>
+      <input class="http-response-header-key"
+             type="text"
+             value="${key}"
+             readonly/>
+    </td>
+    <td>
+      <input class="http-response-header-value"
+             type="text"
+             value="${value}"
+             style="width: 500px"
+             readonly/>
+    </td>
+  `;
+  })
 }
 
 function StoreRequestTargetURL() {
