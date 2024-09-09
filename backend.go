@@ -1,11 +1,14 @@
 package playground
 
 import (
-  "bytes"
   "compress/flate"
   "compress/gzip"
+  "context"
+  "errors"
+  "fmt"
   "io"
   "log/slog"
+  "maps"
   "mime"
   "net/http"
   "strings"
@@ -14,17 +17,6 @@ import (
 
 // maxBodyBytes is the accepted body size for a playground request.
 const maxBodyBytes = 5 << 20 // 5 MB
-
-// playgroundResponse represents the response returned from the backend.
-type playgroundResponse struct {
-  bytes.Buffer
-}
-
-func newPlaygroundResponse() *playgroundResponse {
-  r := new(playgroundResponse)
-  r.Buffer = bytes.Buffer{}
-  return r
-}
 
 type bodyFormatter interface {
   format(input []byte, output io.Writer, indent string)
@@ -55,38 +47,58 @@ var supportedEncodings = map[string]func(io.Reader) io.ReadCloser{
   "compress": flate.NewReader,
 }
 
+var errNoRequest = errors.New("failed not perform the request")
+
 // backend sends an HTTP request to the target specified in the input request
 // and returns a playgroundResponse with a formatted JSON body. If an error occurs during
 // the request, it logs the error and returns nil.
-func backend(in *request) *playgroundResponse {
+func backend(in *request) (response *responseBuilder) {
   client := http.Client{
     Timeout: 30 * time.Second,
   }
 
-  req, err := http.NewRequest(in.method, in.target.String(), nil)
+  response = newResponseBuilder()
+
+  ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
+  defer cancel()
+  req, err := http.NewRequestWithContext(ctx, in.method, in.target.String(), nil)
   if nil != err {
-    slog.Error(err.Error())
-    return nil
+    slog.Error("http.NewRequestWithContext(...) failed",
+      slog.Group("error", slog.String("message", err.Error())),
+      slog.Group("request",
+        slog.String("method", in.method),
+        slog.String("target", in.target.String()),
+        slog.Int("n_headers", len(in.header)),
+        slog.String("headers", fmt.Sprintf("%v", in.header)),
+      ),
+    )
+
+    response.WriteError(errNoRequest)
+    response.DefaultHeaders()
+    return
   }
 
-  for k, v := range in.header {
-    for _, vv := range v {
-      req.Header.Add(k, vv)
-    }
-  }
-
-  out := newPlaygroundResponse()
+  maps.Copy(req.Header, in.header)
 
   res, err := client.Do(req)
   if nil != err {
-    if strings.Contains(err.Error(), "unsupported protocol scheme") {
-      out.WriteString("Unsupported protocol scheme.")
-      return out
+    switch {
+    default:
+      slog.Error("client.Do(...) failed", slog.Group("error", slog.String("message", err.Error())))
+      response.WriteError(errNoRequest)
+    case strings.Contains(err.Error(), "unsupported protocol scheme"):
+      response.WriteError(errors.New(strings.Split(err.Error(), ": ")[1]))
+    case strings.Contains(err.Error(), "no such host"):
+      response.WriteError(fmt.Errorf("playground can't connect to the server at %#q", in.target.String()))
     }
 
-    slog.Error(err.Error())
-    return out
+    response.SetStartLine("HTTP/1.0", "500 Internal Server Error")
+    response.DefaultHeaders()
+    return
   }
+
+  response.SetStartLine(res.Proto, res.Status)
+  response.SetHeaders(res.Header)
 
   var (
     contentType     = res.Header.Get("Content-Type")
@@ -94,7 +106,7 @@ func backend(in *request) *playgroundResponse {
     formatter       bodyFormatter
   )
 
-  for mtype, f := range supportedMediaTypes {
+  for mtype, f := range maps.All(supportedMediaTypes) {
     if mediatype == mtype {
       formatter = f
     }
@@ -102,8 +114,9 @@ func backend(in *request) *playgroundResponse {
 
   if nil == formatter {
     if typ, _ := splitMediaType(mediatype); "text" != typ {
-      out.WriteString("Unsupported media type:" + mediatype)
-      return out
+      response.WriteError(fmt.Errorf("unsupported media type %#q", mediatype))
+      response.DefaultHeaders()
+      return
     }
 
     formatter = textFormatter
@@ -120,11 +133,6 @@ func backend(in *request) *playgroundResponse {
   }
 
   if nil == bodyReader {
-    if "" != contentEncoding {
-      out.WriteString("Unsupported Content-Encoding encoding: " + contentEncoding)
-      return out
-    }
-
     bodyReader = res.Body
   }
 
@@ -132,18 +140,21 @@ func backend(in *request) *playgroundResponse {
 
   result, err := io.ReadAll(bodyReader)
   if nil != err {
-    if strings.Contains(err.Error(), "request body too large") {
-      out.WriteString("Request body too large.")
-    } else {
-      slog.Error(err.Error())
+    switch {
+    default:
+      response.WriteError(errNoRequest)
+      slog.Error("io.ReadAll(...) failed", slog.Group("error", slog.String("message", err.Error())))
+    case strings.Contains(err.Error(), "request body too large"):
+      response.WriteError(fmt.Errorf("request body too large"))
     }
 
-    return out
+    response.DefaultHeaders()
+    return
   }
 
-  formatter.format(result, out, "  ")
+  formatter.format(result, response, "  ")
 
-  return out
+  return response
 }
 
 // splitMediaType extracts the type and subtype from a MIME type.
