@@ -1,9 +1,12 @@
 package main
 
 import (
+  "fmt"
   "fontseca.dev/playground"
-  "log/slog"
+  "log"
+  "net"
   "net/http"
+  "slices"
   "time"
 )
 
@@ -17,7 +20,6 @@ func main() {
   mux.HandleFunc("GET /", playground.Renderer)
 
   server := http.Server{
-    Addr:              "0.0.0.0:52368",
     Handler:           mux,
     IdleTimeout:       1 * time.Minute,
     ReadTimeout:       5 * time.Second,
@@ -26,7 +28,26 @@ func main() {
     ReadHeaderTimeout: 0,
   }
 
-  slog.Info("running fontseca.dev's playground", slog.String("addr", server.Addr))
+  listener, err := net.Listen("tcp", ":0")
+  if nil != err {
+    log.Fatalf("net.Listen(...) failed: %v", err)
+  }
 
-  slog.Error(server.ListenAndServe().Error())
+  defer listener.Close()
+
+  var (
+    addrs []net.Addr
+    ip    string
+  )
+
+  addrs, _ = net.InterfaceAddrs()
+  for addr := range slices.Values(addrs) {
+    ipnet, ok := addr.(*net.IPNet)
+    if ok && !ipnet.IP.IsLoopback() && nil != ipnet.IP.To4() {
+      ip = ipnet.IP.String()
+    }
+  }
+
+  fmt.Printf("running fontseca.dev/playground server at %v:%v\n", ip, listener.Addr().(*net.TCPAddr).Port)
+  log.Fatalf("server.Serve(...) failed: %v", server.Serve(listener))
 }
