@@ -7,6 +7,7 @@ import (
   "net/http"
   "slices"
   "sort"
+  "strings"
   "time"
 )
 
@@ -25,7 +26,7 @@ func newResponseBuilder() *responseBuilder {
 
 // SetStartLine sets the start line of the HTTP response with the provided protocol version and status.
 func (r *responseBuilder) SetStartLine(proto, status string) {
-  r.startLine = []byte(fmt.Sprintf("%s %s", proto, status))
+  r.startLine = []byte(fmt.Sprintf("%s %s", strings.TrimSpace(proto), strings.TrimSpace(status)))
 }
 
 // SetHeaders copies the provided headers into the HTTP response headers.
