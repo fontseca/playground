@@ -12,6 +12,36 @@ document.addEventListener("DOMContentLoaded", function () {
   ParseQueryParametersFromRequestBar();
 });
 
+function ParseHTTPResponse(httpResponseMessage) {
+  const result = {
+    proto: "",
+    statusCode: 0,
+    statusText: "",
+    headers: {},
+    body: ""
+  };
+
+  const endOfStartLine = httpResponseMessage.indexOf("\n");
+  const startLine = httpResponseMessage.substring(0, endOfStartLine);
+  const endOfStartLineProto = startLine.indexOf(" ");
+  result.proto = startLine.substring(0, endOfStartLineProto);
+
+  const status = startLine.substring(1 + endOfStartLineProto);
+  result.statusCode = parseInt(status.substring(0, status.indexOf(" ")));
+  result.statusText = status.substring(1 + status.indexOf(" "));
+
+  const endOfHeaders = httpResponseMessage.indexOf("\n\n");
+  const headers = httpResponseMessage.substring(1 + endOfStartLine, endOfHeaders);
+
+  for (const line of headers.split("\n")) {
+    const [key, value] = line.split(": ");
+    result.headers[key] = value;
+  }
+
+  result.body = httpResponseMessage.substring(2 + endOfHeaders);
+  return result;
+}
+
 function SubmitRequest(event) {
   if (event.ctrlKey && "Enter" === event.key) {
     event.preventDefault();
