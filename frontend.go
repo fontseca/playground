@@ -11,7 +11,7 @@ import (
 // and writes the formatted response to the HTTP response writer.
 func Scanner(w http.ResponseWriter, r *http.Request) {
   req := parse(r)
-  response := backend(req)
+  response := backend(r.Context(), req)
 
   w.Header().Set("Content-Type", "text/plain; charset=utf-8")
   w.WriteHeader(http.StatusOK)

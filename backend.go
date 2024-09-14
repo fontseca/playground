@@ -52,14 +52,14 @@ var errNoRequest = errors.New("failed not perform the request")
 // backend sends an HTTP request to the target specified in the input request
 // and returns a playgroundResponse with a formatted JSON body. If an error occurs during
 // the request, it logs the error and returns nil.
-func backend(in *request) (response *responseBuilder) {
+func backend(ctx context.Context, in *request) (response *responseBuilder) {
   client := http.Client{
     Timeout: 30 * time.Second,
   }
 
   response = newResponseBuilder()
 
-  ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
+  ctx, cancel := context.WithTimeout(ctx, client.Timeout)
   defer cancel()
   req, err := http.NewRequestWithContext(ctx, in.method, in.target.String(), nil)
   if nil != err {
