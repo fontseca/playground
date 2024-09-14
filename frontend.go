@@ -38,9 +38,12 @@ type request struct {
 // parse extracts the HTTP method and target URL from an incoming HTTP request
 // and returns a new request struct containing these values.
 func parse(r *http.Request) *request {
+  var err error
   req := new(request)
 
-  r.ParseForm()
+  if err = r.ParseForm(); nil != err {
+    slog.Error(err.Error())
+  }
 
   target := r.PostFormValue("request_target")
   method := r.PostFormValue("request_method")
@@ -59,11 +62,10 @@ func parse(r *http.Request) *request {
 
   req.method = method
 
-  var err error
   req.target, err = url.Parse(target)
   if nil != err {
     slog.Error(err.Error())
-    return nil
+    req.target = &url.URL{}
   }
 
   return req
