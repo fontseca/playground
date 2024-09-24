@@ -74,7 +74,9 @@ func (r *responseBuilder) build() *bytes.Buffer {
   sort.Strings(keys)
 
   for key := range slices.Values(keys) {
-    buffer.WriteString(fmt.Sprintf("%s: %s\n", key, r.header.Get(key)))
+    for kk := range slices.Values(r.header.Values(key)) {
+      buffer.WriteString(fmt.Sprintf("%s: %s\n", key, kk))
+    }
   }
 
   buffer.WriteRune('\n')

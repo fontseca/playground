@@ -146,6 +146,40 @@ func TestResponseBuilder_build(t *testing.T) {
       "\ngot:"+
       "\n---\n%s\n---\n", expected, buffer.String())
   }
+
+  r = newResponseBuilder()
+  h := http.Header{}
+  h.Set("Content-Type", "text/plain; charset=utf-8")
+  h.Set("Date", "Mon, 09 Sep 2024 13:39:17 CST")
+  h.Set("Server", "fontseca.dev/playground (v1.0)")
+  h.Add("X-Value", "1")
+  h.Add("X-Value", "2")
+  h.Add("X-Value", "3")
+  h.Add("X-Value", "4")
+  r.SetHeaders(h)
+
+  r.Write([]byte("Lorem ipsum dolor sit amet, consectetur adipiscing"))
+
+  expected = `HTTP/1.0 200 OK
+Content-Type: text/plain; charset=utf-8
+Date: Mon, 09 Sep 2024 13:39:17 CST
+Server: fontseca.dev/playground (v1.0)
+X-Value: 1
+X-Value: 2
+X-Value: 3
+X-Value: 4
+
+Lorem ipsum dolor sit amet, consectetur adipiscing`
+
+  buffer = r.build()
+
+  if expected != buffer.String() {
+    t.Errorf("\nexpected:"+
+      "\n---\n%s\n---\n"+
+      "\ngot:"+
+      "\n---\n%s\n---\n", expected, buffer.String())
+  }
+
 }
 
 func TestResponseBuilder_Bytes(t *testing.T) {
