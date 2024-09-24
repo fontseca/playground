@@ -47,7 +47,7 @@ var supportedEncodings = map[string]func(io.Reader) io.ReadCloser{
   "compress": flate.NewReader,
 }
 
-var errNoRequest = errors.New("failed not perform the request")
+var errNoRequest = errors.New("failed to perform the request")
 
 // backend sends an HTTP request to the target specified in the input request
 // and returns a playgroundResponse with a formatted JSON body. If an error occurs during
