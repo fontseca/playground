@@ -47,7 +47,7 @@ var supportedEncodings = map[string]func(io.Reader) io.ReadCloser{
   "compress": flate.NewReader,
 }
 
-var errNoRequest = errors.New("failed to perform the request")
+var errNoRequest = errors.New("internal service error")
 
 // backend sends an HTTP request to the target specified in the input request
 // and returns a playgroundResponse with a formatted JSON body. If an error occurs during
@@ -86,13 +86,14 @@ func backend(ctx context.Context, in *request) (response *responseBuilder) {
     default:
       slog.Error("client.Do(...) failed", slog.Group("error", slog.String("message", err.Error())))
       response.WriteError(errNoRequest)
+    case errors.Is(err, context.DeadlineExceeded):
+      response.WriteError(errors.New("request timed out"))
     case strings.Contains(err.Error(), "unsupported protocol scheme"):
       response.WriteError(errors.New(strings.Split(err.Error(), ": ")[1]))
     case strings.Contains(err.Error(), "no such host"):
-      response.WriteError(fmt.Errorf("playground can't connect to the server at %#q", in.target.String()))
+      response.WriteError(fmt.Errorf("could not connect to the server at %#q", in.target.String()))
     }
 
-    response.SetStartLine("HTTP/1.0", "500 Internal Server Error")
     response.DefaultHeaders()
     return
   }
@@ -145,7 +146,7 @@ func backend(ctx context.Context, in *request) (response *responseBuilder) {
       response.WriteError(errNoRequest)
       slog.Error("io.ReadAll(...) failed", slog.Group("error", slog.String("message", err.Error())))
     case strings.Contains(err.Error(), "request body too large"):
-      response.WriteError(fmt.Errorf("request body too large"))
+      response.WriteError(fmt.Errorf("response body is too large"))
     }
 
     response.DefaultHeaders()
