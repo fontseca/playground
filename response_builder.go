@@ -16,6 +16,7 @@ type responseBuilder struct {
   startLine []byte
   header    http.Header
   body      bytes.Buffer
+  errored   bool
 }
 
 func newResponseBuilder() *responseBuilder {
@@ -45,11 +46,16 @@ func (r *responseBuilder) DefaultHeaders() {
 
 // Write appends the provided byte slice to the body of the HTTP response.
 func (r *responseBuilder) Write(p []byte) (n int, err error) {
+  if r.errored {
+    return 0, nil
+  }
+
   return r.body.Write(p)
 }
 
 // WriteError writes an error message to the HTTP response, discarding any previous written bytes to the body.
 func (r *responseBuilder) WriteError(err error) {
+  r.errored = true
   r.body.Reset()
   r.body.WriteString(err.Error())
 }
@@ -58,7 +64,9 @@ func (r *responseBuilder) build() *bytes.Buffer {
   buffer := &bytes.Buffer{}
   buffer.Grow(len(r.startLine) + 1 + len(r.header) + len(r.body.Bytes())) // approximate growth
 
-  if len(r.startLine) == 0 {
+  if r.errored {
+    r.SetStartLine("HTTP/1.0", "503 Service Unavailable")
+  } else if len(r.startLine) == 0 {
     r.SetStartLine("HTTP/1.0", "200 OK")
   }
 
@@ -80,6 +88,10 @@ func (r *responseBuilder) build() *bytes.Buffer {
   }
 
   buffer.WriteRune('\n')
+
+  if r.errored {
+    buffer.WriteString("Playground server failed: ")
+  }
 
   buffer.Write(r.body.Bytes())
   return buffer
