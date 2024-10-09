@@ -1,3 +1,50 @@
+const requestTabs = document.querySelectorAll("[data-tab-request-target]")
+const requestTabContents = document.querySelectorAll("[data-tab-request-content]")
+
+requestTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = document.querySelector(tab.dataset.tabRequestTarget)
+    requestTabContents.forEach(tabContent => {
+      tabContent.classList.remove('active')
+    })
+
+    requestTabs.forEach(tab => {
+      tab.classList.remove('active')
+    })
+
+    tab.classList.add('active')
+    target.classList.add('active')
+  })
+})
+
+const responseTabs = document.querySelectorAll('[data-tab-response-target]')
+const responseTabContents = document.querySelectorAll('[data-tab-response-content]')
+
+responseTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = document.querySelector(tab.dataset.tabResponseTarget)
+
+    if ("tab-response-body" === target.getAttribute("id")) {
+      target.parentElement.classList.remove("with-diagonal");
+    } else {
+      target.parentElement.classList.add("with-diagonal");
+    }
+
+    responseTabContents.forEach(tabContent => {
+      tabContent.classList.remove('active')
+    })
+
+    responseTabs.forEach(tab => {
+      tab.classList.remove('active')
+    })
+
+    tab.classList.add('active')
+    target.classList.add('active')
+  })
+})
+
+
+let requestStarts;
 const requestTarget = document.getElementById("http-request-target");
 
 document.body.addEventListener('htmx:afterOnLoad', HandleAfterOnLoad);
@@ -6,21 +53,76 @@ document.addEventListener("DOMContentLoaded", function () {
   AppendQueryParameterRow("", "");
   AppendHeaderRow("", "");
 
+  let alreadyLoaded = false;
+
+  try {
+    let target = new URLSearchParams(window.location.search).get("target");
+
+    if (target) {
+      if ("/" === target[0]) {
+        target = `${window.location.protocol}//${window.location.host}${target}`
+      }
+
+      const url = new URL(target)
+      requestTarget.value = url.toString();
+      alreadyLoaded = true;
+      new URLSearchParams(window.location.search).delete("target");
+    }
+  } catch (e) {
+    console.error(e);
+  }
+
   if (requestTarget) {
     requestTarget.addEventListener("keyup", ParseQueryParametersFromRequestBar);
   }
 
-  requestTarget.value = localStorage.getItem("fontseca.dev/playground@http-request-target");
+  if (!alreadyLoaded) {
+    requestTarget.value = localStorage.getItem("fontseca.dev/playground@http-request-target");
+  }
+
   ParseQueryParametersFromRequestBar();
 });
+
+
+function ParseCookie(str) {
+  const obj = {};
+  const pairs = str.split(/; */);
+
+  let mainCookieSet = false; // Flag for tracking if Name/Value has been set.
+
+  for (const pair of pairs) {
+    const equalsIndex = pair.indexOf('=');
+
+    let key = equalsIndex > -1 ? pair.slice(0, equalsIndex).trim() : pair.trim();
+    let value = equalsIndex > -1 ? pair.slice(equalsIndex + 1).trim() : 'true';
+
+    if (value.length > 1 && value[0] === '"' && value[value.length - 1] === '"') {
+      value = value.slice(1, -1);
+    }
+
+    if (!mainCookieSet) {
+      obj.Name = key;
+      obj.Value = decodeURIComponent(value);
+      mainCookieSet = true;
+    } else {
+      if (!Object.hasOwn(obj, key)) {
+        obj[key] = decodeURIComponent(value);
+      }
+    }
+  }
+
+  return obj;
+}
+
 
 function ParseHTTPResponse(httpResponseMessage) {
   const result = {
     proto: "",
     statusCode: 0,
     statusText: "",
-    headers: {},
-    body: ""
+    headers: [],
+    body: "",
+    cookies: [],
   };
 
   const endOfStartLine = httpResponseMessage.indexOf("\n");
@@ -37,11 +139,33 @@ function ParseHTTPResponse(httpResponseMessage) {
 
   for (const line of headers.split("\n")) {
     const [key, value] = line.split(": ");
-    result.headers[key] = value;
+
+    if (key.toLowerCase() === "set-cookie") {
+      result.cookies.push(ParseCookie(value));
+    }
+
+    result.headers.push({key, value});
   }
 
   result.body = httpResponseMessage.substring(2 + endOfHeaders);
   return result;
+}
+
+document.getElementById("http-request-form").onsubmit = (ev) => {
+  if (!ev.target.children[1].checkValidity()) {
+    return
+  }
+
+  document.getElementById("http-response-body").innerHTML = "";
+  document.getElementById("centered-label-response-body").classList.add("disable");
+  const responseStatus = document.getElementById("response-status");
+  const responseStats = document.getElementById("response-stats");
+  responseStatus.getElementsByTagName("a")[0].textContent = `— —`;
+
+  responseStats.getElementsByTagName("span")[0].textContent = `— MS`;
+  responseStats.getElementsByTagName("span")[1].textContent = `— KB`;
+
+  requestStarts = Date.now();
 }
 
 function SubmitRequest(event) {
@@ -52,35 +176,75 @@ function SubmitRequest(event) {
 }
 
 function HandleAfterOnLoad(event) {
-  const statusContainer = document.getElementById("http-response-status");
   const bodyContainer = document.getElementById("http-response-body");
   const responseHeadersTable = document.getElementById("http-response-headers");
+  const responseCookiesTable = document.getElementById("http-response-cookies");
   const httpResponseMessage = event.detail.xhr.responseText;
   const response = ParseHTTPResponse(httpResponseMessage);
 
   responseHeadersTable.innerHTML = "";
+  responseCookiesTable.innerHTML = "";
   bodyContainer.innerHTML = response.body;
-  statusContainer.textContent = `${response.proto} ${response.statusCode} ${ response.statusText }`;
+  const responseStatus = document.getElementById("response-status");
+  const responseStats = document.getElementById("response-stats");
 
-  Object.keys(response.headers).forEach(key => {
-    const value = response.headers[key];
+  responseStatus.classList.add("active");
+  responseStats.classList.add("active");
+
+  const statusAnchor = responseStatus.getElementsByTagName("a")[0];
+  statusAnchor.setAttribute("href", `https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/${response.statusCode}`)
+  statusAnchor.setAttribute("title", `Read more about the \`${response.statusCode} ${response.statusText}\` response.`)
+  statusAnchor.textContent = `${response.statusCode} ${response.statusText}`;
+
+  responseStats.getElementsByTagName("span")[0].textContent = `${Date.now() - requestStarts} MS`;
+  responseStats.getElementsByTagName("span")[1].textContent = `${response.body.length / 1000} KB`;
+
+  document.querySelector("li[data-tab-response-target='#tab-response-headers']").textContent = `Headers (${response.headers.length})`;
+
+  document.querySelectorAll("#tab-response-headers .disable").forEach(e => e.classList.remove("disable"));
+  document.getElementById("centered-label-response-headers").classList.add("disable");
+
+  response.headers.forEach(header => {
     const entry = responseHeadersTable.insertRow();
     entry.innerHTML = `
     <td>
       <input class="http-response-header-key"
              type="text"
-             value="${key}"
+             value="${header.key}"
              readonly/>
     </td>
     <td>
       <input class="http-response-header-value"
              type="text"
-             value="${value}"
-             style="width: 500px"
+             value="${header.value}"
              readonly/>
     </td>
   `;
   })
+
+  if (response.cookies.length > 0) {
+    document.querySelectorAll("#tab-response-cookies .disable").forEach(e => e.classList.remove("disable"));
+    document.getElementById("centered-label-response-cookies").classList.add("disable");
+    document.querySelector("li[data-tab-response-target='#tab-response-cookies']").textContent = `Cookies (${response.cookies.length})`;
+    response.cookies.forEach(cookie => {
+      const entry = responseCookiesTable.insertRow();
+      entry.innerHTML = `
+      <td><input type="text" value="${cookie.Name}" readonly/></td>
+      <td><input type="text" value="${cookie.Value}" readonly/></td>
+      <td><input type="text" value="${cookie.Domain ?? "—"}" readonly/></td>
+      <td><input type="text" value="${cookie.Path ?? "—"}" readonly/></td>
+      <td><input type="text" value="${cookie.Expires ?? "Session"}" readonly/></td>
+      <td><input type="text" value="${cookie.HttpOnly ?? "—"}" readonly/></td>
+      <td><input type="text" value="${cookie.Secure ?? "—"}" readonly/></td>
+    `;
+    })
+  } else {
+    document.querySelector("li[data-tab-response-target='#tab-response-cookies']").textContent = `Cookies`;
+    document.querySelector("#tab-response-cookies h3").classList.add("disable");
+    document.querySelector("#tab-response-cookies table").classList.add("disable");
+    document.getElementById("centered-label-response-cookies").classList.remove("disable");
+    document.getElementById("centered-label-response-cookies").children[0].textContent = "No cookies received from the server."
+  }
 }
 
 function StoreRequestTargetURL() {
