@@ -1,3 +1,8 @@
+// Prevent form re-submition.
+if (window.history.replaceState) {
+  window.history.replaceState(null, null, window.location.href);
+}
+
 const requestTabs = document.querySelectorAll("[data-tab-request-target]")
 const requestTabContents = document.querySelectorAll("[data-tab-request-content]")
 
@@ -43,11 +48,164 @@ responseTabs.forEach(tab => {
   })
 })
 
+document.body.addEventListener('htmx:afterOnLoad', HandleAfterOnLoad);
 
 let requestStarts;
 const requestTarget = document.getElementById("http-request-target");
+const methodPicker = document.getElementById("http-request-method-picker");
+const collectionExplorer = document.querySelector(".playground-collection-container");
+const collectionFolders = collectionExplorer.querySelectorAll(".item.folder");
+const collectionRequests = collectionExplorer.querySelectorAll(".playground-collection-container .content .item:not(.folder)");
+const btnToggleCollection = collectionExplorer.querySelector("button.collection-files-toggle");
+const btnImportCollection = collectionExplorer.querySelector("button.collection-files-import");
+const dialogImportCollection = document.querySelector(".import-collection-dialog");
+const dialogImportCollectionCloser = dialogImportCollection.querySelector(".closer");
+const requestForm = document.getElementById("http-request-form");
+const requestBody = document.getElementById("http-request-body");
+const inputCollUpload = document.getElementById("coll");
+const btnCollUpload = document.getElementById("btn-coll-upload");
 
-document.body.addEventListener('htmx:afterOnLoad', HandleAfterOnLoad);
+btnToggleCollection.onclick = () => {
+  collectionExplorer.classList.toggle("open");
+};
+
+btnImportCollection.onclick = () => {
+  dialogImportCollection.showModal();
+};
+
+dialogImportCollectionCloser.onclick = () => {
+  dialogImportCollection.close();
+};
+
+collectionFolders.forEach(folder => {
+  folder.querySelector("span.name:first-child").onclick = () => {
+    folder.classList.toggle("open");
+  };
+});
+
+const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
+
+inputCollUpload.onchange = ev => {
+  if (1 === ev.target.files.length) {
+    const coll = ev.target.files[0];
+    const lblErrMsg = document.getElementById("coll-error-msg");
+
+    if (!coll.name.endsWith(".json")) {
+      ev.target.value = "";
+      lblErrMsg.textContent = "Only `.json` files are accepted.";
+      lblErrMsg.style.display = "block";
+      btnCollUpload.disabled = true;
+      return;
+    }
+
+    if (MAX_FILE_SIZE < coll.size) {
+      ev.target.value = "";
+      lblErrMsg.textContent = "File size must be less than 1 MB.";
+      lblErrMsg.style.display = "block";
+      btnCollUpload.disabled = true;
+      return;
+    }
+
+    lblErrMsg.style.display = "none";
+    lblErrMsg.textContent = "";
+    btnCollUpload.disabled = false;
+  } else {
+    btnCollUpload.disabled = true;
+  }
+};
+
+requestForm.onsubmit = (ev) => {
+  if (!ev.target.children[1].checkValidity()) {
+    return
+  }
+
+  document.getElementById("http-response-body").innerHTML = "";
+  document.getElementById("centered-label-response-body").classList.add("disable");
+  const responseStatus = document.getElementById("response-status");
+  const responseStats = document.getElementById("response-stats");
+  responseStatus.getElementsByTagName("a")[0].textContent = `— —`;
+
+  responseStats.getElementsByTagName("span")[0].textContent = `— MS`;
+  responseStats.getElementsByTagName("span")[1].textContent = `— KB`;
+
+  requestStarts = Date.now();
+}
+
+collectionRequests.forEach(request => {
+  request.onclick = () => {
+    try {
+      document.querySelector(".playground-collection-container .content .item:not(.folder).selected").classList.remove("selected");
+    } catch (e) {
+    }
+
+    ResetResponse();
+
+    request.classList.add("selected");
+
+    const name = request.querySelector(".name");
+    const id = name.getAttribute("data-id");
+    const selectedRequestFromCollection = requests.find(element => element["data_id"] === id);
+
+    const path = selectedRequestFromCollection["full_name"];
+    const parts = path.split(" / ");
+    let nestedHTML = `<span class="item">${parts[parts.length - 1]}</span>`;
+    for (let i = parts.length - 2; i >= 0; i--) {
+      nestedHTML = `<span class="item">${parts[i]}${nestedHTML}</span>`;
+    }
+
+    document.querySelector(".playground-content .canvas header.request-name").innerHTML = nestedHTML;
+    requestTarget.value = selectedRequestFromCollection["url_resolved"];
+
+    const options = [].slice.call(methodPicker.options);
+    methodPicker.selectedIndex = options.findIndex(element => element.value === selectedRequestFromCollection["request_method"]);
+
+    let headers = selectedRequestFromCollection["request_header"];
+
+    GetHeadersTable().innerHTML = "";
+    for (const header of headers) {
+      AppendHeaderRow(header.key, header.value);
+    }
+
+    AppendHeaderRow("", "");
+
+    GetQueryParametersTable().innerHTML = "";
+
+    let queries = selectedRequestFromCollection["url_query"];
+
+    for (const query of queries) {
+      AppendQueryParameterRow(query.key, query.value);
+    }
+
+    AppendQueryParameterRow("", "");
+
+    if ("POST" !== selectedRequestFromCollection["request_method"]
+      && "PUT" !== selectedRequestFromCollection["request_method"]
+      && "PATCH" !== selectedRequestFromCollection["request_method"]) {
+      requestBody.value = "";
+      return;
+    }
+
+    const bodymode = selectedRequestFromCollection["request_body_mode"];
+
+    if ("" === bodymode) {
+      return;
+    }
+
+    if ("urlencoded" === bodymode) {
+      const urlencoded = selectedRequestFromCollection["request_body_urlencoded"];
+      const body = [];
+
+      urlencoded.forEach(field => body.push(`${field.key}=${field.value}`));
+      requestBody.value = body.join("&");
+      return;
+    }
+
+    if ("raw" === bodymode) {
+      requestBody.value = selectedRequestFromCollection["request_body_raw"];
+    }
+  };
+});
+
 
 document.addEventListener("DOMContentLoaded", function () {
   AppendQueryParameterRow("", "");
@@ -149,23 +307,6 @@ function ParseHTTPResponse(httpResponseMessage) {
 
   result.body = httpResponseMessage.substring(2 + endOfHeaders);
   return result;
-}
-
-document.getElementById("http-request-form").onsubmit = (ev) => {
-  if (!ev.target.children[1].checkValidity()) {
-    return
-  }
-
-  document.getElementById("http-response-body").innerHTML = "";
-  document.getElementById("centered-label-response-body").classList.add("disable");
-  const responseStatus = document.getElementById("response-status");
-  const responseStats = document.getElementById("response-stats");
-  responseStatus.getElementsByTagName("a")[0].textContent = `— —`;
-
-  responseStats.getElementsByTagName("span")[0].textContent = `— MS`;
-  responseStats.getElementsByTagName("span")[1].textContent = `— KB`;
-
-  requestStarts = Date.now();
 }
 
 function SubmitRequest(event) {
@@ -469,4 +610,29 @@ function InterceptHeaderEntry(event) {
   if ("" !== headerKey && needsNewHeaderRow) {
     AppendHeaderRow("", "");
   }
+}
+
+function ResetResponse() {
+  document.querySelectorAll(
+    ".response-panel .workspace-tab-content h3," +
+    ".response-panel .workspace-tab-content table").forEach(h3 => {
+    h3.classList.add("disable");
+  });
+
+  document.querySelectorAll(".response-panel .workspace-tab-content .centered-label").forEach(label => {
+    label.classList.remove("disable");
+  });
+
+  document.querySelectorAll(
+    ".workbench .response-panel .response-body #response-status," +
+    ".workbench .response-panel .response-body #response-stats").forEach(element => {
+    element.style.display = "none";
+  });
+
+
+  GetQueryParametersTable().innerHTML = "";
+  document.getElementById("http-response-body").innerHTML = "";
+  document.querySelector("li[data-tab-response-target='#tab-response-headers']").textContent = "Headers";
+  document.getElementById("http-response-headers").innerHTML = "";
+  document.getElementById("http-response-cookies").innerHTML = "";
 }
