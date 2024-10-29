@@ -111,8 +111,8 @@ templ collectionFiles(colltree string) {
       <button class="collection-files-toggle" type="button">Explorer</button>
     </div>
     <div class="content">
-      if "" != collection {
-        {! templ.Raw(collection) }
+      if "" != colltree {
+        {! templ.Raw(colltree) }
       } else {
         <div class="no-coll">
           <strong>No collection imported.</strong>
