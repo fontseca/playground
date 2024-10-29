@@ -5,7 +5,7 @@ import (
 )
 
 templ titleBar() {
-  <div class="title-bar">
+  <div class="playground-title-bar">
     <div class="title-bar-options">
       <ul>
         <li><a class="logo" href="/">fontseca.<span>dev</span></a></li>
@@ -22,7 +22,7 @@ templ titleBar() {
   </div>
 }
 
-templ layout() {
+templ layout(collsrc string) {
   <html lang="en" xmlns:hx-on="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="UTF-8"/>
@@ -39,6 +39,7 @@ templ layout() {
     <link rel="icon" type="image/png" sizes="32x32" href="/public/icons/favicon-32x32.png"/>
     <link rel="icon" type="image/png" sizes="16x16" href="/public/icons/favicon-16x16.png"/>
     <link rel="manifest" href="/public/icons/site.webmanifest"/>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <title>fontseca.dev — playground</title>
   </head>
   <body hx-on:keyup="SubmitRequest(event)">
@@ -46,26 +47,79 @@ templ layout() {
       @titleBar()
       { children... }
     </div>
+
+    <dialog class="import-collection-dialog">
+      <header>
+        <h2>Import Collection</h2>
+      </header>
+      <form action="/playground" enctype="multipart/form-data" method="post" target="_parent">
+        <label for="coll">Choose your Postman API collection.</label>
+        <input type="file"
+               id="coll"
+               name="coll"
+               accept=".json, application/json"/>
+        <small id="coll-error-msg" style="color: red; display: none;"></small>
+        <button id="btn-coll-upload" type="submit" disabled>Import</button>
+        <button class="closer" type="button">Close</button>
+      </form>
+
+      <br />
+      <small>Only HTTP/1.1 is currently supported.</small>
+    </dialog>
+
+  if "" != collsrc {
+    {! templ.Raw(collsrc) }
+  }
+
   <script src="/playground/engine.js"></script>
   <script src="https://unpkg.com/htmx.org@2.0.1" integrity="sha384-QWGpdj554B4ETpJJC9z+ZHJcA/i59TyjxEPXiiUgN2WmTyV5OEZWCD6gQhgkdpB/" crossorigin="anonymous"></script>
   </body>
   </html>
 }
 
-templ website() {
-  @layout() {
-    <main class="content">
-      @collectionFiles()
+templ website(colltree, collsrc string) {
+  @layout(collsrc) {
+    <main class="playground-content">
+      @collectionFiles(colltree)
       <div class="canvas">
         @requestBar()
+        <header class="request-name">
+          <span class="item">Untitled Request</span>
+        </header>
         @workbench()
       </div>
     </main>
   }
 }
 
-templ collectionFiles() {
-  <div class="collection-files"></div>
+templ collectionContainer(open bool) {
+  if open {
+    <div class="playground-collection-container open">
+      { children...}
+    </div>
+  } else {
+    <div class="playground-collection-container">
+      { children...}
+    </div>
+  }
+}
+
+templ collectionFiles(colltree string) {
+  @collectionContainer("" != colltree) {
+    <div class="actions">
+      <button class="collection-files-import" type="button">Import</button>
+      <button class="collection-files-toggle" type="button">Explorer</button>
+    </div>
+    <div class="content">
+      if "" != collection {
+        {! templ.Raw(collection) }
+      } else {
+        <div class="no-coll">
+          <strong>No collection imported.</strong>
+        </div>
+      }
+    </div>
+  }
 }
 
 templ requestBar() {
@@ -150,8 +204,13 @@ templ requestPanel() {
       }
 
       @workspaceTab(false, "request-body", "request") {
-        <h3 class="disable">Request Body</h3>
-        @centeredLabel("Request body is not supported by this version.", "request-body")
+        <h3>Request Body</h3>
+        <textarea id="http-request-body"
+                  class="http-request-body-textarea"
+                  name="http-request-body"
+                  form="http-request-form"
+                  spellcheck="false">
+        </textarea>
       }
     }
 
