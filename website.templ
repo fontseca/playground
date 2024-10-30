@@ -77,7 +77,7 @@ templ layout(collsrc string) {
   </html>
 }
 
-templ website(colltree, collsrc string) {
+templ website(colltree, collsrc, alert string) {
   @layout(collsrc) {
     <main class="playground-content">
       @collectionFiles(colltree)
@@ -89,6 +89,9 @@ templ website(colltree, collsrc string) {
         @workbench()
       </div>
     </main>
+    if "" != alert {
+      {! templ.Raw(alert) }
+    }
   }
 }
 
