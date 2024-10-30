@@ -61,7 +61,14 @@ func backend(ctx context.Context, in *request) (response *responseBuilder) {
 
   ctx, cancel := context.WithTimeout(ctx, client.Timeout)
   defer cancel()
-  req, err := http.NewRequestWithContext(ctx, in.method, in.target.String(), nil)
+
+  var body io.Reader
+
+  if "" != in.body {
+    body = strings.NewReader(in.body)
+  }
+
+  req, err := http.NewRequestWithContext(ctx, in.method, in.target.String(), body)
   if nil != err {
     slog.Error("http.NewRequestWithContext(...) failed",
       slog.Group("error", slog.String("message", err.Error())),
@@ -114,7 +121,7 @@ func backend(ctx context.Context, in *request) (response *responseBuilder) {
   }
 
   if nil == formatter {
-    if typ, _ := splitMediaType(mediatype); "text" != typ {
+    if typ, _ := splitMediaType(mediatype); "text" != typ && "" != typ {
       response.WriteError(fmt.Errorf("unsupported media type %#q", mediatype))
       response.DefaultHeaders()
       return
