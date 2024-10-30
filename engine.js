@@ -144,7 +144,7 @@ collectionRequests.forEach(request => {
 
     const name = request.querySelector(".name");
     const id = name.getAttribute("data-id");
-    const selectedRequestFromCollection = requests.find(element => element["data_id"] === id);
+    const selectedRequestFromCollection = requests.find(element => element["id"] === id);
 
     const path = selectedRequestFromCollection["full_name"];
     const parts = path.split(" / ");
