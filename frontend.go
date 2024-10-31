@@ -4,9 +4,14 @@ import (
   "errors"
   "fmt"
   "html/template"
+  "io"
   "log/slog"
+  "mime/multipart"
   "net/http"
   "net/url"
+  "os"
+  "path"
+  "runtime"
   "strings"
 )
 
@@ -41,29 +46,65 @@ func Renderer(w http.ResponseWriter, r *http.Request) {
     website("", "", alert).Render(r.Context(), w)
   }
 
-  if r.Method != http.MethodPost {
+  collname := r.URL.Query().Get("collname")
+  if r.Method != http.MethodPost && "" == collname {
     abortWithAlert("")
     return
   }
 
-  collfile, collfileheader, err := r.FormFile("coll")
-  if nil != err {
-    slog.Error("could not open collection file", slog.Group("error", slog.String("message", err.Error())))
-    abortWithAlert("Playground could not open file.")
-    return
+  var (
+    collfile io.ReadCloser
+    err      error
+  )
+
+  if "" != collname { /* Lookup file in collections folder.  */
+    var (
+      _, current, _, _ = runtime.Caller(0)
+      collfullname     = fmt.Sprint(path.Join(path.Dir(current), "public", "collections", collname), ".json")
+      file             *os.File
+    )
+
+    file, err = os.Open(collfullname)
+    if nil != err {
+      slog.Error("could not open collection file", slog.Group("error", slog.String("message", err.Error())))
+      abortWithAlert("Playground could find this collection :o")
+      return
+    }
+
+    stats, err := file.Stat()
+    if nil != err {
+      slog.Error("file.Stat() failed", slog.Group("error", slog.String("message", err.Error())))
+      abortWithAlert("Playground could find this collection :o")
+      return
+    }
+
+    if 1024*1024 < stats.Size() {
+      abortWithAlert("Playground only accepts file sizes less than 1 MB.")
+      return
+    }
+
+    collfile = file /* All right.  */
+  } else if r.Method == http.MethodPost { /* Collection file comes from form data.  */
+    var collfileheader *multipart.FileHeader
+    collfile, collfileheader, err = r.FormFile("coll")
+    if nil != err {
+      slog.Error("could not open collection file", slog.Group("error", slog.String("message", err.Error())))
+      abortWithAlert("Playground could not open file.")
+      return
+    }
+
+    if !strings.Contains(collfileheader.Header.Get("Content-Type"), "application/json") {
+      abortWithAlert("Playground only accepts `application/json` files.")
+      return
+    }
+
+    if 1024*1024 < collfileheader.Size {
+      abortWithAlert("Playground only accepts file sizes less than 1 MB.")
+      return
+    }
   }
 
   defer collfile.Close()
-
-  if !strings.Contains(collfileheader.Header.Get("Content-Type"), "application/json") {
-    abortWithAlert("Playground only accepts `application/json` files.")
-    return
-  }
-
-  if 1024*1024 < collfileheader.Size {
-    abortWithAlert("Playground only accepts file sizes less than 1 MB.")
-    return
-  }
 
   collsrc, colltree, err := collGen(collfile)
   if nil != err {
