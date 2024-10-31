@@ -1,0 +1,18 @@
+You can try the following URLs in this playground.
+
+Successful responses with:
+
+  - https://fontseca.dev
+  - https://fontseca.dev/public/stylesheets/stylesheet.css
+  - https://fontseca.dev/playground
+  - https://thetestrequest.com/authors.xml
+  - https://jsonplaceholder.typicode.com/users/5
+  - https://www.iana.org/assignments/media-types/application/xml
+  - https://www.google.com/search?q=test&oq=test&gs_lcrp=EgZjaHJvbWUyBggAEEUYQDIGCAEQRRhBMgYIAhBFGEEyBggDEEUYQTIGCAQQRRhBMgYIBRBFGEEyBggGEEUYQTIGCAcQRRhB0gEIMTIyNmowajGoAgCwAgA&sourceid=chrome&ie=UTF-8
+
+Erroneous responses with:
+
+  - https://www.cs.cmu.edu/~crary/819-f09/Hoare78.pdf
+  - https://upload.wikimedia.org/wikipedia/commons/b/b6/Image_created_with_a_mobile_phone.png
+  - https://raw.githubusercontent.com/dscape/spell/master/test/resources/big.txt
+  - https://raw.githubusercontent.com/litterinchina/large-file-download-test/refs/heads/master/20M.txt
