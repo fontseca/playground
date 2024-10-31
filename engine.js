@@ -327,9 +327,6 @@ function HandleAfterOnLoad(event) {
   const responseCookiesTable = document.getElementById("http-response-cookies");
   const httpResponseMessage = event.detail.xhr.responseText;
   const response = ParseHTTPResponse(httpResponseMessage);
-
-  console.log(response);
-
   responseHeadersTable.innerHTML = "";
   responseCookiesTable.innerHTML = "";
   bodyContainer.innerHTML = response.body;
