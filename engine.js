@@ -133,8 +133,15 @@ requestForm.onsubmit = (ev) => {
 
 collectionRequests.forEach(request => {
   request.onclick = () => {
+    const name = request.querySelector(".name");
+    const id = name.getAttribute("data-id");
+
     try {
-      document.querySelector(".playground-collection-container .content .item:not(.folder).selected").classList.remove("selected");
+      const selected = document.querySelector(".playground-collection-container .content .item:not(.folder).selected");
+      if (id === selected.querySelector(".name").getAttribute("data-id")) { /* Clicking same request.  */
+        return;
+      }
+      selected.classList.remove("selected");
     } catch (e) {
     }
 
@@ -142,8 +149,6 @@ collectionRequests.forEach(request => {
 
     request.classList.add("selected");
 
-    const name = request.querySelector(".name");
-    const id = name.getAttribute("data-id");
     const selectedRequestFromCollection = requests.find(element => element["id"] === id);
 
     const path = selectedRequestFromCollection["full_name"];
@@ -322,6 +327,8 @@ function HandleAfterOnLoad(event) {
   const responseCookiesTable = document.getElementById("http-response-cookies");
   const httpResponseMessage = event.detail.xhr.responseText;
   const response = ParseHTTPResponse(httpResponseMessage);
+
+  console.log(response);
 
   responseHeadersTable.innerHTML = "";
   responseCookiesTable.innerHTML = "";
@@ -626,7 +633,7 @@ function ResetResponse() {
   document.querySelectorAll(
     ".workbench .response-panel .response-body #response-status," +
     ".workbench .response-panel .response-body #response-stats").forEach(element => {
-    element.style.display = "none";
+    element.classList.remove("active");
   });
 
 
