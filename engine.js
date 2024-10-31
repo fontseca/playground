@@ -201,7 +201,7 @@ collectionRequests.forEach(request => {
       const body = [];
 
       urlencoded.forEach(field => body.push(`${field.key}=${field.value}`));
-      requestBody.value = body.join("&");
+      requestBody.value = body.join("\n&");
       return;
     }
 
