@@ -12,7 +12,6 @@ import (
   "mime"
   "net"
   "net/http"
-  "net/url"
   "strings"
   "time"
 )
@@ -76,9 +75,6 @@ func backend(ctx context.Context, in *request) (response *responseBuilder) {
       if len(via) >= 5 {
         return http.ErrUseLastResponse
       }
-      if !isValidTarget(req.URL) {
-        return fmt.Errorf("redirect to unsafe URL blocked")
-      }
       return nil
     },
   }
@@ -90,12 +86,6 @@ func backend(ctx context.Context, in *request) (response *responseBuilder) {
 
   if _, ok := allowedMethods[in.method]; !ok {
     response.WriteError(fmt.Errorf("method %s is not allowed", in.method))
-    response.DefaultHeaders()
-    return
-  }
-
-  if !isValidTarget(in.target) {
-    response.WriteError(fmt.Errorf("invalid target URL"))
     response.DefaultHeaders()
     return
   }
@@ -209,27 +199,4 @@ func splitMediaType(v string) (typ string, subtype string) {
     return parts[0], strings.Split(parts[1], ";")[0]
   }
   return
-}
-
-// isValidTarget checks if the URL is safe (not internal IPs or localhost)
-func isValidTarget(target *url.URL) bool {
-  ip := net.ParseIP(target.Hostname())
-  if ip == nil {
-    return true // Not an IP address, proceed as normal.
-  }
-
-  privateRanges := []*net.IPNet{
-    {IP: net.IPv4(127, 0, 0, 0), Mask: net.CIDRMask(8, 32)},    // 127.0.0.0/8
-    {IP: net.IPv4(10, 0, 0, 0), Mask: net.CIDRMask(8, 32)},     // 10.0.0.0/8
-    {IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)},  // 172.16.0.0/12
-    {IP: net.IPv4(192, 168, 0, 0), Mask: net.CIDRMask(16, 32)}, // 192.168.0.0/16
-    {IP: net.ParseIP("::1"), Mask: net.CIDRMask(128, 128)},     // IPv6 loopback
-  }
-
-  for _, rng := range privateRanges {
-    if rng.Contains(ip) {
-      return false // Block requests to internal IP ranges
-    }
-  }
-  return true
 }

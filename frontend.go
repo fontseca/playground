@@ -1,6 +1,7 @@
 package playground
 
 import (
+  "context"
   "errors"
   "fmt"
   "html/template"
@@ -17,7 +18,7 @@ import (
 
 // Scanner scans an incoming HTTP request, parses it, sends it to the backend,
 // and writes the formatted response to the HTTP response writer.
-func Scanner(w http.ResponseWriter, r *http.Request) {
+func Scanner(ctx context.Context, w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "text/plain; charset=utf-8")
   var (
     response = &responseBuilder{}
@@ -29,7 +30,7 @@ func Scanner(w http.ResponseWriter, r *http.Request) {
     response.WriteError(err)
     response.DefaultHeaders()
   } else {
-    response = backend(r.Context(), req)
+    response = backend(ctx, req)
   }
 
   w.WriteHeader(http.StatusOK)
