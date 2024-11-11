@@ -1,11 +1,12 @@
 package main
 
 import (
+  "context"
   "fmt"
-  "fontseca.dev/playground"
   "log"
   "net"
   "net/http"
+  "playground"
   "slices"
   "time"
 )
@@ -16,8 +17,14 @@ func main() {
   mux.HandleFunc("GET /playground/engine.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "engine.js") })
   mux.HandleFunc("GET /playground/stylesheet.css", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "stylesheet.css") })
 
-  mux.HandleFunc("POST /playground.request", playground.Scanner)
+  playgroundCtx, playgroundCtxCanceler := context.WithCancel(context.Background())
+  defer playgroundCtxCanceler()
+  mux.HandleFunc("POST /playground.request", func(w http.ResponseWriter, r *http.Request) {
+    playground.Scanner(playgroundCtx, w, r)
+  })
+
   mux.HandleFunc("GET /", playground.Renderer)
+  mux.HandleFunc("POST /", playground.Renderer)
 
   server := http.Server{
     Handler:           mux,
