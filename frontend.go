@@ -146,11 +146,13 @@ func parse(r *http.Request) (*request, error) {
   method := r.PostFormValue("request_method")
   headerKeys := r.PostForm["header-key"]
   headerValues := r.PostForm["header-value"]
-  if 5<<20 <= len(r.PostForm["http-request-body"][0]) {
-    return nil, errors.New("request body too long")
+  if len(r.PostForm["http-request-body"]) > 0 {
+    if 5<<20 <= len(r.PostForm["http-request-body"][0]) {
+      return nil, errors.New("request body too long")
+    }
+    req.body = r.PostForm["http-request-body"][0]
   }
 
-  req.body = r.PostForm["http-request-body"][0]
   req.header = http.Header{}
   for n := range len(headerKeys) {
     key, value := strings.TrimSpace(headerKeys[n]), strings.TrimSpace(headerValues[n])
