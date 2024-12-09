@@ -3,7 +3,7 @@
 </div>
 
 <figure>
-  <img src="https://github.com/user-attachments/assets/87fea3d1-833e-4cdf-b091-28ec4b9693bc" alt="playground"/>
+  <img src="https://github.com/user-attachments/assets/5abba5fd-9f02-4a11-b818-96c4437dfa36" alt="playground"/>
   <figcaption>
     <p><i>A screenshot of the initial version of the fontseca.dev's playground running with a collection exported from Postman.</i></p>
   </figcaption>
